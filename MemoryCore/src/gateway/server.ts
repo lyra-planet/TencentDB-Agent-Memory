@@ -1413,11 +1413,21 @@ export class TdaiGateway {
         `msg="${result.error.message}"`,
       );
     } else {
-      this.logger.info(`Recall completed in ${elapsed}ms: context=${(result.appendSystemContext?.length ?? 0)} chars`);
+      const contextLength =
+        (result.prependContext?.length ?? 0) +
+        (result.appendSystemContext?.length ?? 0);
+      this.logger.info(`Recall completed in ${elapsed}ms: context=${contextLength} chars`);
     }
 
+    // The internal hook keeps dynamic L1 memories in prependContext so prompt
+    // caching can treat the stable system section separately. The legacy v1
+    // HTTP contract only exposes one `context` field, so combine both parts
+    // here or direct `/recall` clients would receive only the static guide.
+    const context = [result.prependContext, result.appendSystemContext]
+      .filter((part): part is string => !!part)
+      .join("\n\n");
     const response: RecallResponse = {
-      context: result.appendSystemContext ?? "",
+      context,
       strategy: result.recallStrategy,
       memory_count: result.recalledL1Memories?.length ?? 0,
       code: result.error?.code ?? 0,

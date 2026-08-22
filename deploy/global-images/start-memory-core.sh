@@ -95,7 +95,9 @@ memory:
     enabled: true
     maxResults: 5
     scoreThreshold: 0.3
-    strategy: hybrid
+    # Standalone local mode disables embeddings, so keyword/BM25 is the
+    # available recall path. Hybrid requires an EmbeddingService.
+    strategy: keyword
     timeoutMs: 5000
   storeBackend: sqlite
   embedding:
@@ -172,7 +174,7 @@ verify_user_key() {
   [[ "$code" == "200" ]]
 }
 
-info "初始化 admin user（username=${MEMORY_CORE_ADMIN_USERNAME}, key 持久化 → $ADMIN_KEY_FILE）..."
+info "初始化 admin user（username=${MEMORY_CORE_ADMIN_USERNAME}, key 持久化 → ${ADMIN_KEY_FILE}）..."
 
 # 生成随机 key（首次 init-admin 用；若之前有 file 就复用）
 if [[ -s "$ADMIN_KEY_FILE" ]]; then
@@ -197,13 +199,13 @@ case "$init_resp" in
     # 落盘 key（把宿主机 file 的权限收紧）
     umask 077
     echo -n "$ADMIN_KEY" > "$ADMIN_KEY_FILE"
-    ok "  admin user_key 已保存到 $ADMIN_KEY_FILE"
+    ok "  admin user_key 已保存到 ${ADMIN_KEY_FILE}"
     ;;
   409)
     if [[ -s "$ADMIN_KEY_FILE" ]]; then
-      ok "admin user 已存在（跳过 init-admin，用 $ADMIN_KEY_FILE 里的 key）"
+      ok "admin user 已存在（跳过 init-admin，用 ${ADMIN_KEY_FILE} 里的 key）"
     else
-      warn "admin user 已存在，但 $ADMIN_KEY_FILE 缺失，无法恢复 user_key。"
+      warn "admin user 已存在，但 ${ADMIN_KEY_FILE} 缺失，无法恢复 user_key。"
       warn "选项 A: 清理 volume 重建 —— ./stop-all.sh --purge && ./start-memory-core.sh"
       warn "选项 B: 手动创建新 admin user_key（需要旧 key 或 gateway apiKey）"
     fi
@@ -224,6 +226,6 @@ if [[ -s "$ADMIN_KEY_FILE" ]]; then
     ok "admin user_key 校验通过（auth/verify 200）—— $masked"
     ok "  key file: $ADMIN_KEY_FILE"
   else
-    warn "admin user_key 校验失败（auth/verify 非 200）。检查 $ADMIN_KEY_FILE 与 volume 是否匹配。"
+    warn "admin user_key 校验失败（auth/verify 非 200）。检查 ${ADMIN_KEY_FILE} 与 volume 是否匹配。"
   fi
 fi
